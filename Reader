@@ -1,0 +1,132 @@
+#```python
+import chess
+import chess.pgn
+import pygame
+import time
+import sys
+
+def get_piece_name(piece):
+    if piece.color == chess.WHITE:
+        color = "w"
+    else:
+        color = "b"
+
+    return color + piece.symbol().lower()
+
+def load_images():
+    images = {}
+    pieces = ['wp', 'wr', 'wn', 'wb', 'wq', 'wk',
+              'bp', 'br', 'bn', 'bb', 'bq', 'bk']
+    for piece in pieces:
+        images[piece] = pygame.image.load(f"Resources/{piece}.png")
+    return images
+
+def draw_board(screen, board, images):
+    for rank in range(8):
+        for file in range(8):
+            rotated_file = 7 - rank  
+            rotated_rank = file  
+            
+            square = (rotated_rank, rotated_file)
+            sqr_color = (
+                (218, 233, 242) if (rank + file) % 2 == 0 else (110, 153, 192))
+            sqr_rect = pygame.Rect(rotated_file * 100, rotated_rank * 100, 100, 100)
+            pygame.draw.rect(screen, sqr_color, sqr_rect)
+            piece = board.piece_at(chess.square(rank, file))
+            if piece:
+                img = images[get_piece_name(piece)]
+                screen.blit(img, sqr_rect.topleft)
+    pygame.display.flip()
+
+
+def choose_game(games_list):
+    print("Available games:")
+    for idx, game in enumerate(games_list):
+        print(f"{idx + 1}. {game.headers['White']} vs {game.headers['Black']}")
+    print("\nEnter the number of the game you want to watch:")
+    choice = int(input()) - 1
+    if choice >= 0 and choice < len(games_list):
+        return games_list[choice]
+    else:
+        print("Invalid game number")
+        sys.exit()
+
+def load_games_from_pgn(pgn_path):
+    games = []
+    with open(pgn_path, encoding='utf-8') as pgn_file:
+        while True:
+            game = chess.pgn.read_game(pgn_file)
+            if game is None:
+                break
+            games.append(game)
+    return games
+
+def handle_input(clock, auto_play):
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            return "QUIT"
+        elif event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_RIGHT:
+                return "NEXT"
+            elif event.key == pygame.K_LEFT:
+                return "PREV"
+            elif event.key == pygame.K_a:
+                return "AUTO_PLAY_TOGGLE"
+            elif event.key == pygame.K_n:
+                return "NEW_GAME"
+    if auto_play:
+        clock.tick(0.5)  # Set the interval between moves in seconds when auto_play is enabled
+        return "NEXT"
+    else:
+        clock.tick(1)
+    return None
+
+def main():
+    pygame.init()
+    screen = pygame.display.set_mode((800, 800))
+    clock = pygame.time.Clock()
+
+    # Load PGN file and parse all games
+    pgn_file_path = 'C:\\Users\\Public\\Documents\\DragonVsStockfish\\game.pgn'
+    games_list = load_games_from_pgn(pgn_file_path)
+    game = choose_game(games_list)
+
+    # Board representation in python-chess
+    board = game.board()
+
+    # Load images of the chess pieces
+    images = load_images()
+
+    # Iterate over moves in the game
+    move_index = 0
+    moves = list(game.mainline_moves())
+
+    # Add auto_play variable
+    auto_play = False
+
+    while True:
+        action = handle_input(clock, auto_play)
+        if action == "QUIT":
+            break
+        elif action == "PREV":
+            if move_index > 0:
+                board.pop()  # Undo last move
+                move_index -= 1
+        elif action == "NEXT":
+            if move_index < len(moves):
+                board.push(moves[move_index])
+                move_index += 1
+        elif action == "AUTO_PLAY_TOGGLE":
+            auto_play = not auto_play
+        elif action == "NEW_GAME":
+            game = choose_game(games_list)
+            board = game.board()
+            move_index = 0
+            moves = list(game.mainline_moves())
+
+        # Draw the updated board
+        draw_board(screen, board, images)
+
+if __name__ == "__main__":
+    main()
+#```
